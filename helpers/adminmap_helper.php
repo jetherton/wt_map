@@ -1132,6 +1132,17 @@ class adminmap_helper_Core {
 	        $round_number = 0;
 	        switch ($zoomLevel )
 	        {
+	        	case 0:
+	        	case 1:
+	        		$round_number=-4;
+	        	case 2:
+	        	case 3:
+	        		$round_number=-2;
+	        		break;
+	        	case 4:
+	        		$round_number=-1;
+	        		break;
+	        	case 5:
 	        	case 6:
 	        	case 7:
 	        		$round_number=0;
@@ -1144,26 +1155,40 @@ class adminmap_helper_Core {
         		case 11:
         			$round_number=2;
         			break;
-        		case 12:
+        		case 12:        		
+        			$round_number=2;
+        			break;        		
         		case 13:
         			$round_number=3;
-        			break;
-
-        		case 12:
-        		case 13:
-        			$round_number=4;
         			break;        			
         		case 14:
-        		case 15:
-        			$round_number=6;
+        			$round_number=4;
         			break;
+        		case 15:
+        			$round_number=5;
+        		case 16:
+       			case 17:
+   				case 18:
+				case 19:
+				case 20:
+					$round_number=22;
+        			break;
+        			
 	        }
 	        
 	        foreach($markers as $marker)
 	        {
 	        	
 	        	//create a key
-	        	$key = round($marker['lat'],$round_number) . round($marker['lon'],$round_number).$marker['province_cat'];
+	        	$key = "";
+	        	if($zoomLevel >= 5)
+	        	{
+	        		$key = round($marker['lat'],$round_number) . round($marker['lon'],$round_number).$marker['province_cat'];
+	        	}
+	        	else
+	        	{
+	        		$key = round($marker['lat'],$round_number) . round($marker['lon'],$round_number);
+	        	}
 	        	//check if there's already an entry for this cluster? If not make it
 	        	if(!isset($clusters[$key])) 
 	        	{
@@ -1390,17 +1415,33 @@ class adminmap_helper_Core {
             $cluster_count = count($cluster);
             $cluster_count = $cluster['count'];
 	    
-	    $clusterText = "";
-	    $dmText = "";
-	    if($zoomLevel >= 5)
-	    {
-		$dmText = "&dm=".$province_id;
-		$clusterText = "<br/> In ".$province_name;
-	    }
-
+            $description = "";
+            $link = "";
+            $dmText = "";
+            //if it's a cluster of one
+		    if($cluster['count'] == 1)
+		    {
+		    	$description = $cluster['starter']['incident_title'];
+		    	$link = url::base().$edit_report_path.$cluster['starter']['id'];
+		    }
+		    //if it's a cluster that has been clustered by zoom level
+		    elseif ($zoomLevel >= 5)
+		    {
+		    	$description = $cluster['count']. " Reports <br/> In ".$province_name;
+		    	$dmText = "&dm=".$province_id;
+		    	$link = url::base(). $list_reports_path . $url_param_join_character . $categories_str."&sw=".$southwest."&ne=".$northeast."&lo=".$logical_operator."&u=".$show_unapproved.$time_filter;
+		    }
+		    //if it's a cluster that has been clustered by location only
+		    else
+		    {
+		    	$description = $cluster['count']. " Reports";
+		    	$link = url::base(). $list_reports_path . $url_param_join_character . $categories_str."&sw=".$southwest."&ne=".$northeast."&lo=".$logical_operator."&u=".$show_unapproved.$time_filter;
+		    }
+            
+	    
             $json_item = "{\"type\":\"Feature\",\"properties\": {";	    	
-	    $json_item .= "\"description\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a target='".$link_target."' href='" . url::base() . $list_reports_path. $url_param_join_character . $categories_str."&sw=".$southwest."&ne=".$northeast."&lo=".$logical_operator."&u=".$show_unapproved.$time_filter.$dmText."'>" . $cluster_count . " Reports".$clusterText."</a> ".$category_str)) . "\",";
-            $json_item .= "\"name\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a target='".$link_target."' href='" . url::base() . $list_reports_path. $url_param_join_character . $categories_str."&sw=".$southwest."&ne=".$northeast."&lo=".$logical_operator."&u=".$show_unapproved.$time_filter.$dmText."'>" . $cluster_count . " Reports".$clusterText."</a> ".$category_str)) . "\",";
+	    	$json_item .= "\"description\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a target='".$link_target."' href='". $link ."'>" . $description."</a> ".$category_str)) . "\",";
+            $json_item .= "\"name\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a target='".$link_target."' href='" .$link."'>" . $description."</a> ".$category_str)) . "\",";
 	    	$json_item .= "\"link\":\"" . url::base(). $list_reports_path . $url_param_join_character . $categories_str."&sw=".$southwest."&ne=".$northeast."&lo=".$logical_operator."&u=".$show_unapproved.$time_filter."\",";
             $json_item .= "\"category\":[0], ";
             /*
