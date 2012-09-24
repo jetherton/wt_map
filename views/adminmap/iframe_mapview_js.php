@@ -303,6 +303,7 @@ function changeTopBottom(direction)
 		var markerRadius = <?php echo $marker_radius; ?>;
 		var markerOpacity = "<?php echo $marker_opacity; ?>";
 		var selectedFeature;
+		var currentZoom = defaultZoom;
 
 		var gMarkerOptions = {baseUrl: baseUrl, longitude: longitude,
 		                     latitude: latitude, defaultZoom: defaultZoom,
@@ -510,28 +511,45 @@ function changeTopBottom(direction)
 			}
 		}
 
+
+		/*
+		 Re draws the map when we zoom in and out, or when we 
+		 pan too far away from the source when we're zoomed in 
+		 */
 		function mapMove(event)
 		{
 			// Prevent this event from running on the first load
 			if (mapLoad > 0)
 			{
-				// Get Current Category
-				currCat = $("#currentCat").val();
-
-				// Get Current Start Date
-				currStartDate = $("#startDate").val();
-
-				// Get Current End Date
-				currEndDate = $("#endDate").val();
-
-				// Get Current Zoom
-				currZoom = map.getZoom();
-
-				// Get Current Center
-				currCenter = map.getCenter();
-
-				// Refresh Map
-				addMarkers(currCat, currStartDate, currEndDate, currZoom, currCenter);
+			
+				var redraw = false;
+				//check if we've zoomed in.. or out
+				if(currentZoom != map.getZoom())
+				{
+					redraw = true;
+					currentZoom = map.getZoom();
+				}
+				
+				if(redraw)
+				{
+					// Get Current Category
+					currCat = $("#currentCat").val();
+	
+					// Get Current Start Date
+					currStartDate = $("#startDate").val();
+	
+					// Get Current End Date
+					currEndDate = $("#endDate").val();
+	
+					// Get Current Zoom
+					currZoom = map.getZoom();
+	
+					// Get Current Center
+					currCenter = map.getCenter();
+	
+					// Refresh Map
+					addMarkers(currCat, currStartDate, currEndDate, currZoom, currCenter);
+				}
 			}
 		}
 
@@ -704,12 +722,13 @@ function changeTopBottom(direction)
 				projection: proj_900913,
 				'displayProjection': proj_4326,
 				eventListeners: {
-						"zoomend": mapMove
+						"moveend": mapMove
 				    },
 				'theme': null
 				};
 			map = new OpenLayers.Map('map', options);
 			map.addControl( new OpenLayers.Control.LoadingPanel({minSize: new OpenLayers.Size(573, 366)}) );
+			
 			
 			<?php echo map::layers_js(FALSE); ?>
 			map.addLayers(<?php echo map::layers_array(FALSE); ?>);

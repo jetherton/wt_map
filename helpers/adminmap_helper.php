@@ -1092,13 +1092,66 @@ class adminmap_helper_Core {
 	            $filter .= " AND location.longitude >=".(float) $longitude_min.
 	                " AND location.longitude <=".(float) $longitude_max;
 	        }
+	        
+	        
+	    ///////////////////////Limit the bounding box/////////////////////////
+	    //if we're at zoom level 10 or greater than limit the bounding box
+	    //first figure out how long and tall the view port is in miles
+	    //then multiply that by some number proportional to the zoom level and that's 
+	    //the bounding box
+	    ///////////////////////////////////////////////////////////////////////
+	    $bounding_box_sql = '';
+	
+	    if($zoomLevel >= 10 AND isset($_GET['north'])) //since if north is there, the rest will be there I'm cool with this
+	    {
+	    	
+	    	$window_size_factor = 5;
+	    	
+	    	$north = floatval($_GET['north']);
+	    	$south = floatval($_GET['south']);
+	    	$west = floatval($_GET['west']);
+	    	$east = floatval($_GET['east']);
+	    	
+	    	$width = self::lat_lon_distance($north, $east, $north,$west);
+	    	$height = self::lat_lon_distance($north, $west, $south,$west);
+	    	
+	    	if(isset($_GET['debug'])){	    		
+	    		echo "\r\ncurrent window height: $height width: $width\r\n";
+	    	}
+	    		    	
+	    	$bounding_width = $width * $window_size_factor;
+	    	$bounding_height = $height * $window_size_factor;
+	    	
+	    	if(isset($_GET['debug'])){
+	    		echo "\r\nExpanded window height: $bounding_height width: $bounding_width\r\n\r\n";
+	    	}
+	    	
+	    	
+	    	//get new north
+	    	if(isset($_GET['debug'])){echo "\r\n old north $north ";}
+	    	$bounding_north = self::destinationPoint($north, $west, 0, $bounding_height);
+	    	$bounding_north = $bounding_north['lat'];
+	    	if(isset($_GET['debug'])){echo " new north $bounding_north\r\n";}
+	    	//new south
+	    	$bounding_south = self::destinationPoint($south, $west, 180, $bounding_height);
+	    	$bounding_south = $bounding_south['lat'];
+	    	//get new east
+	    	$bounding_east = self::destinationPoint($north, $east, 90, $bounding_width);
+	    	$bounding_east = $bounding_east['lon'];
+	    	//new west
+	    	$bounding_west = self::destinationPoint($north, $west, 270, $bounding_width);
+	    	$bounding_west = $bounding_west['lon'];
+	    	
+	    	$bounding_box_sql = ' AND ( location.latitude > '. $bounding_south . ' AND location.latitude < '.$bounding_north . 
+	    		' AND location.longitude > '.$bounding_west. ' AND location.longitude < '.$bounding_east.') ';
+	    }
 	
 		//stuff john just added
 		$normal_color = self::merge_colors($category_ids, $custom_category_to_table_mapping);
 	
 		$t = microtime(true);
 		$markers = adminmap_reports::get_reports_list_by_cat($category_ids, 
-			$approved_text. ' ' .$filter ,
+			$approved_text. ' '. $bounding_box_sql .$filter ,
 			$logical_operator,
 			"incident.id",
 			"asc");
@@ -2169,6 +2222,60 @@ class adminmap_helper_Core {
 
 	
         echo json_encode($graph_data);
+    }
+    
+    /**
+     * Special thanks to http://www.planet-source-code.com/vb/scripts/ShowCode.asp?txtCodeId=46&lngWId=8 for this code
+     * @param unknown_type $lat1
+     * @param unknown_type $lng1
+     * @param unknown_type $lat2
+     * @param unknown_type $lng2
+     * @param unknown_type $miles
+     */
+    public static function lat_lon_distance($lat1, $lng1, $lat2, $lng2, $miles = true)
+    {
+    	$pi = 3.1415926;
+    	$rad = doubleval($pi/180.0);
+    	$lon1 = doubleval($lng1)*$rad; 
+    	$lat1 = doubleval($lat1)*$rad;
+    	
+    	$lon2 = doubleval($lng2)*$rad; 
+    	$lat2 = doubleval($lat2)*$rad;
+    	
+    	$theta = $lon2 - $lon1;
+    	$dist = acos(sin($lat1) * sin($lat2) + cos($lat1) * cos($lat2) * cos($theta));
+    	if ($dist < 0) {
+    		$dist += $pi;
+    	}
+    	$dist = $dist * 6371.2;
+    	return $dist;
+    }
+    
+    /**
+     * Special thanks to http://stackoverflow.com/questions/11111077/find-latitude-longitude-point-in-php-given-initial-lat-lng-distance-and-bearin
+     * for this code. God bless stack over flow
+     * @param foat $lat
+     * @param float $lng
+     * @param flat $brng
+     * @param float $dist in KM
+     */
+    public static function destinationPoint($lat, $lng, $brng, $dist) {
+    	//$meters = $dist/3.2808399; // dist in meters
+    	//$dist =  $meters/1000; // dist in km
+    	$rad = 6371.2; // earths mean radius
+    	$dist = $dist/$rad;  // convert dist to angular distance in radians
+    	$brng = deg2rad($brng);  // conver to radians
+    	$lat1 = deg2rad($lat);
+    	$lon1 = deg2rad($lng);
+    
+    	$lat2 = asin(sin($lat1)*cos($dist) + cos($lat1)*sin($dist)*cos($brng) );
+    	$lon2 = $lon1 + atan2(sin($brng)*sin($dist)*cos($lat1),cos($dist)-sin($lat1)*sin($lat2));
+    	$lon2 = fmod($lon2 + 3*M_PI, 2*M_PI) - M_PI;
+    	$lat2 = rad2deg($lat2);
+    	$lon2 = rad2deg($lon2);
+    
+    	return array("lat"=>$lat2, "lon"=>$lon2);
+    	
     }
 
 
