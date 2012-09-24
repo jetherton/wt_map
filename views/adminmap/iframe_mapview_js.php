@@ -304,6 +304,8 @@ function changeTopBottom(direction)
 		var markerOpacity = "<?php echo $marker_opacity; ?>";
 		var selectedFeature;
 		var currentZoom = defaultZoom;
+		var lastReloadCenter = null;
+		var viewPortDistance = null;
 
 		var gMarkerOptions = {baseUrl: baseUrl, longitude: longitude,
 		                     latitude: latitude, defaultZoom: defaultZoom,
@@ -317,7 +319,10 @@ function changeTopBottom(direction)
 		function addMarkers(catID,startDate,endDate, currZoom, currCenter,
 			mediaType, thisLayerID, thisLayerType, thisLayerUrl, thisLayerColor)
 		{
-		
+			if(map.getCenter() != null)
+			{				
+				lastReloadCenter = OpenLayers.Layer.SphericalMercator.inverseMercator(map.getCenter().lon, map.getCenter().lat);
+			} 
 			// Get Current Status, and if we should color these reports black
 			currStatus = $("#currentStatus").val();
 			currColorStatus = $("#colorCurrentStatus").val();
@@ -340,6 +345,16 @@ function changeTopBottom(direction)
 				west = northWest.lon;
 				south = southEast.lat;
 				east = southEast.lon;
+				
+				if(currZoom >= 10)
+				{
+					var northEast = new OpenLayers.LonLat(southEast.lon, northWest.lat);
+					viewPortDistance = getDistance(northWest, northEast) * 5;
+				}
+				else
+				{
+					viewPortDistance = null;
+				}
 			}
 			
 			if(catID == "")
@@ -480,36 +495,6 @@ function changeTopBottom(direction)
             event.feature.popup = null;
         }
 
-		// Refactor Clusters On Zoom
-		// *** Causes the map to load json twice on the first go
-		// *** Need to fix this!
-		function mapZoom(event)
-		{
-			// Prevent this event from running on the first load
-			if (mapLoad > 0)
-			{
-				// Get Current Category
-				currCat = $("#currentCat").val();
-				
-				// Get Current Status
-				currStatus = $("#currentStatus").val();
-
-				// Get Current Start Date
-				currStartDate = $("#startDate").val();
-
-				// Get Current End Date
-				currEndDate = $("#endDate").val();
-
-				// Get Current Zoom
-				currZoom = map.getZoom();
-
-				// Get Current Center
-				currCenter = map.getCenter();
-
-				// Refresh Map
-				addMarkers(currCat, currStartDate, currEndDate, currZoom, currCenter);
-			}
-		}
 
 
 		/*
@@ -528,6 +513,17 @@ function changeTopBottom(direction)
 				{
 					redraw = true;
 					currentZoom = map.getZoom();
+				}
+				//check how far we've moved from the start point
+				if(lastReloadCenter != null && viewPortDistance != null && !redraw)
+				{
+					currentCenter = OpenLayers.Layer.SphericalMercator.inverseMercator(map.getCenter().lon, map.getCenter().lat);
+					distance = getDistance(currentCenter, lastReloadCenter);
+					//if the distance is 80% that of the viewport distance then reload the map
+					if(distance > (viewPortDistance * 0.8))
+					{
+						redraw = true;
+					}
 				}
 				
 				if(redraw)
@@ -1271,8 +1267,37 @@ function changeTopBottom(direction)
 		
 
 		
+		/*
+			Function to measure the distance between two points
+		*/
+		function getDistance(pos1, pos2)
+		{
 		
-		
+			//handle toRad not being defined
+			if (typeof(Number.prototype.toRad) === "undefined") {
+			  Number.prototype.toRad = function() {
+			    return this * Math.PI / 180;
+			  }
+			}
+			
+			var lat1 = pos1.lat;
+			var lon1 = pos1.lon;
+			var lat2 = pos2.lat;
+			var lon2 = pos2.lon;
+			
+			var R = 6371; // km
+			var dLat = (lat2-lat1).toRad();
+			var dLon = (lon2-lon1).toRad();
+			var lat1 = lat1.toRad();
+			var lat2 = lat2.toRad();
+			
+			var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+			        Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+			var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+			var d = R * c;
+			
+			return d;
+		}
 		
 		
 		
