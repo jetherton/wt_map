@@ -579,23 +579,17 @@
 					}
 					else //it isn't active so make it active
 					{ 
-						//seems on really big maps with lots of reports we can't do more than 4 categories at a time.
-						if(numOfCategoriesSelected < (maxCategories+1))
-						{
-							$("#cat_"+catID).addClass("active");
-							
-							//make sure the "all categories" button isn't active
-							currentCat = removeCategoryFilter("0", currentCat);
-							
-							//add this category ID from the list of IDs to show
-							var toAdd = catID+","; //we use , as the delimiter bewteen categories
+						
+						$("#cat_"+catID).addClass("active");
+						
+						//make sure the "all categories" button isn't active
+						currentCat = removeCategoryFilter("0", currentCat);
+						
+						//add this category ID from the list of IDs to show
+						var toAdd = catID+","; //we use , as the delimiter bewteen categories
 
-							currentCat = currentCat + toAdd;
-						}
-						else
-						{
-							alert("Sorry, do to the size and complexity of the information on this site we cannot display more than "+maxCategories+" categories at once");
-						}
+						currentCat = currentCat + toAdd;
+						
 					}
 					
 				}
